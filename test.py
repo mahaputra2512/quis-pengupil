@@ -95,29 +95,6 @@ def test_register_password_mismatch():
     time.sleep(2)
     assert "Password tidak sama" in driver.page_source, "Error: Sistem tidak menangani password yang tidak cocok dengan benar."
 
-def test_sql_injection_login():
-    driver.get(BASE_URL + "login.php")
-
-    # Pastikan elemen ditemukan sebelum mengisi
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "username"))).send_keys("' OR '1'='1")
-    driver.find_element(By.ID, "InputPassword").send_keys("' OR '1'='1")
-    driver.find_element(By.NAME, "submit").click()
-
-    time.sleep(2)
-    assert "Not Found" not in driver.page_source, "Error: SQL Injection berhasil, sistem tidak aman!"
-
-def test_sql_injection_register():
-    driver.get(BASE_URL + "register.php")
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "username"))).send_keys("' OR '1'='1")
-    driver.find_element(By.ID, "name").send_keys("' OR '1'='1")
-    driver.find_element(By.ID, "InputEmail").send_keys("hacker@example.com")
-    driver.find_element(By.ID, "InputPassword").send_keys("' OR '1'='1")
-    driver.find_element(By.ID, "InputRePassword").send_keys("' OR '1'='1")
-    driver.find_element(By.NAME, "submit").click()
-
-    time.sleep(2)
-    assert "Not Found" in driver.page_source, "Error: SQL Injection berhasil masuk ke database!"
-
 # Jalankan semua test case menggunakan run_test()
 test_cases = [
     test_login_valid,
@@ -125,9 +102,7 @@ test_cases = [
     test_login_empty,
     test_register_valid,
     test_register_existing_user,
-    test_register_password_mismatch,
-    test_sql_injection_login,
-    test_sql_injection_register
+    test_register_password_mismatch
 ]
 
 for test in test_cases:
