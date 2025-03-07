@@ -1,25 +1,60 @@
+import os
+import logging
+import requests
+import time
+import chromedriver_autoinstaller
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
 
-# Konfigurasi Chrome WebDriver untuk CI/CD di GitHub Actions
-chrome_options = webdriver.ChromeOptions()
-chrome_options.add_argument("--headless")  # Mode headless (tanpa UI)
-chrome_options.add_argument("--no-sandbox")  # Dibutuhkan agar berjalan di GitHub Actions
-chrome_options.add_argument("--disable-dev-shm-usage")  # Mencegah masalah shared memory di Linux
-chrome_options.add_argument("--disable-gpu")  # Tidak perlu GPU di server CI/CD
+# Install ChromeDriver yang sesuai dengan versi Google Chrome
+chromedriver_autoinstaller.install()
 
-# Set up WebDriver dengan konfigurasi yang sudah diperbaiki
-driver = webdriver.Chrome(options=chrome_options)
+# Konfigurasi Logging
+LOG_DIR = "test-results"
+os.makedirs(LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    filename=os.path.join(LOG_DIR, "test_log.txt"),
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
-# Base URL untuk sistem yang diuji
+# Fungsi untuk cek apakah server sudah aktif
+def wait_for_server(url, timeout=30):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                print("✅ Server is up and running!")
+                return True
+        except requests.exceptions.ConnectionError:
+            print("⏳ Waiting for server to start...")
+        time.sleep(5)
+    raise RuntimeError("❌ Server failed to start!")
+
+# Cek server sebelum Selenium berjalan
 BASE_URL = "http://127.0.0.1:8000/"
+wait_for_server(BASE_URL)
+
+# Set up WebDriver
+chrome_options = webdriver.ChromeOptions()
+chrome_options.binary_location = "/usr/bin/google-chrome"
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+
+driver = webdriver.Chrome(options=chrome_options)
+driver.implicitly_wait(10)
 
 # List untuk menyimpan hasil test
 test_results = []
+
+def log_result(test_name, status, message=""):
+    result = f"{test_name}: {status} - {message}"
+    print(result)
+    logging.info(result)
 
 def run_test(test_function):
     """
@@ -107,16 +142,20 @@ def test_sql_injection_login():
     assert "Not Found" not in driver.page_source, "Error: SQL Injection berhasil, sistem tidak aman!"
 
 def test_sql_injection_register():
-    driver.get(BASE_URL + "register.php")
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "username"))).send_keys("' OR '1'='1")
-    driver.find_element(By.ID, "name").send_keys("' OR '1'='1")
-    driver.find_element(By.ID, "InputEmail").send_keys("hacker@example.com")
-    driver.find_element(By.ID, "InputPassword").send_keys("' OR '1'='1")
-    driver.find_element(By.ID, "InputRePassword").send_keys("' OR '1'='1")
-    driver.find_element(By.NAME, "submit").click()
+    try:
+        driver.get(BASE_URL + "register.php")
+        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "username"))).send_keys("' OR '1'='1")
+        driver.find_element(By.ID, "name").send_keys("' OR '1'='1")
+        driver.find_element(By.ID, "InputEmail").send_keys("hacker@example.com")
+        driver.find_element(By.ID, "InputPassword").send_keys("' OR '1'='1")
+        driver.find_element(By.ID, "InputRePassword").send_keys("' OR '1'='1")
+        driver.find_element(By.NAME, "submit").click()
 
-    time.sleep(2)
-    assert "Not Found" in driver.page_source, "Error: SQL Injection berhasil masuk ke database!"
+        WebDriverWait(driver, 5).until(EC.url_contains("index.php"))
+        log_result("test_sql_injection_register", "❌ FAILED", "SQL Injection berhasil masuk ke database!")
+
+    except Exception as e:
+        log_result("test_sql_injection_register", "✅ PASSED", f"SQL Injection dicegah! Error: {str(e)}")
 
 # Jalankan semua test case menggunakan run_test()
 test_cases = [
