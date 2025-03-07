@@ -130,6 +130,7 @@ def test_register_password_mismatch():
     time.sleep(2)
     assert "Password tidak sama" in driver.page_source, "Error: Sistem tidak menangani password yang tidak cocok dengan benar."
 
+<<<<<<< HEAD
 def test_sql_injection_login():
     driver.get(BASE_URL + "login.php")
 
@@ -157,6 +158,8 @@ def test_sql_injection_register():
     except Exception as e:
         log_result("test_sql_injection_register", "✅ PASSED", f"SQL Injection dicegah! Error: {str(e)}")
 
+=======
+>>>>>>> 335ad16390585633988ddd33d68e6ba9a0c830e8
 # Jalankan semua test case menggunakan run_test()
 test_cases = [
     test_login_valid,
@@ -164,9 +167,7 @@ test_cases = [
     test_login_empty,
     test_register_valid,
     test_register_existing_user,
-    test_register_password_mismatch,
-    test_sql_injection_login,
-    test_sql_injection_register
+    test_register_password_mismatch
 ]
 
 for test in test_cases:
